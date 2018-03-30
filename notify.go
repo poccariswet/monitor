@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"time"
 )
 
 var (
@@ -19,27 +18,14 @@ var (
 
 const (
 	endpoint = "https://notify-api.line.me/api/notify"
-	con_text = "定時報告: 実行中"
-	duration = 12
 )
 
 func main() {
 
-	wg.Add(3)
+	wg.Add(1)
 	go ProcessHandle("./test")
-	go ProcessHandle("./test2")
-	go NotifyConstant()
 
 	wg.Wait()
-}
-
-func NotifyConstant() {
-	for {
-		if err := Notify(con_text); err != nil {
-			log.Fatal(err)
-		}
-		time.Sleep(time.Hour * 12)
-	}
 }
 
 func ProcessHandle(bin string) {
@@ -53,13 +39,14 @@ func ProcessHandle(bin string) {
 		log.Print(bin, " is not exited")
 	}
 
-	text := fmt.Sprintf("%s proccessが止まりました。", bin)
-	if err := Notify(text); err != nil {
+	if err := Notify(bin); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func Notify(msg string) error {
+func Notify(text string) error {
+	msg := fmt.Sprintf("%s proceess が止まりました。", text)
+
 	u, err := url.ParseRequestURI(endpoint)
 	if err != nil {
 		return err
