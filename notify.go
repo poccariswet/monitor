@@ -23,7 +23,7 @@ const (
 func main() {
 
 	wg.Add(1)
-	go ProcessHandle("./test")
+	go ProcessHandle("./test") //ここを変える
 
 	wg.Wait()
 }
