@@ -19,7 +19,7 @@ var (
 
 const (
 	endpoint = "https://notify-api.line.me/api/notify"
-	con_text = "定時報告: 実行中"
+	con_text = "定時報告: notifyは実行中です"
 	duration = 12
 )
 

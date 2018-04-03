@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -20,12 +21,26 @@ const (
 	endpoint = "https://notify-api.line.me/api/notify"
 )
 
+var (
+	con_text = fmt.Sprintf("proceess実行中: %s", os.Getenv("HOME"))
+)
+
 func main() {
 
-	wg.Add(1)
-	go ProcessHandle("./test") //ここを変える
+	wg.Add(2)
+	go ProcessHandle("") //ここを変える
+	go NotifyConstant()
 
 	wg.Wait()
+}
+
+func NotifyConstant() {
+	for {
+		if err := Notify(con_text); err != nil {
+			log.Fatal(err)
+		}
+		time.Sleep(time.Hour * 12)
+	}
 }
 
 func ProcessHandle(bin string) {
