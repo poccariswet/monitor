@@ -15,26 +15,25 @@ import (
 var (
 	wg          sync.WaitGroup
 	accessToken = os.Getenv("NOTIFY_TOKEN")
+	con_text    = fmt.Sprintf("定時報告: 実行中(%s)", os.Getenv("HOME"))
 )
 
 const (
 	endpoint = "https://notify-api.line.me/api/notify"
-)
-
-var (
-	con_text = fmt.Sprintf("proceess実行中: %s", os.Getenv("HOME"))
+	duration = 12
 )
 
 func main() {
 
 	wg.Add(2)
-	go ProcessHandle("") //ここを変える
+	go ProcessHandle("./test")
 	go NotifyConstant()
 
 	wg.Wait()
 }
 
 func NotifyConstant() {
+	defer wg.Done()
 	for {
 		if err := Notify(con_text); err != nil {
 			log.Fatal(err)
@@ -54,14 +53,13 @@ func ProcessHandle(bin string) {
 		log.Print(bin, " is not exited")
 	}
 
-	if err := Notify(bin); err != nil {
+	text := fmt.Sprintf("%s proccessが止まりました。", bin)
+	if err := Notify(text); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func Notify(text string) error {
-	msg := fmt.Sprintf("%s proceess が止まりました。", text)
-
+func Notify(msg string) error {
 	u, err := url.ParseRequestURI(endpoint)
 	if err != nil {
 		return err
