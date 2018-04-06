@@ -57,6 +57,7 @@ func ProcessHandle(bin string) {
 	if err := Notify(text); err != nil {
 		log.Fatal(err)
 	}
+	os.Exit(1)
 }
 
 func Notify(msg string) error {
