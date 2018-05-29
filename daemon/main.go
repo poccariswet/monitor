@@ -32,6 +32,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	go func() {
+		for {
+			pidInfo, _ := ps.FindProcess(pid)
+			if pidInfo == nil {
+				Notify(msg_bad)
+				os.Exit(1)
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
 	for {
 		pidInfo, _ := ps.FindProcess(pid)
 		if pidInfo == nil {
@@ -39,7 +50,7 @@ func main() {
 			os.Exit(1)
 		}
 		Notify(msg_good)
-		time.Sleep(12 * time.Second)
+		time.Sleep(600 * time.Second)
 		//		time.Sleep(12 * time.Hour)
 	}
 
