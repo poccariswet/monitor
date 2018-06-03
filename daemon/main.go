@@ -37,6 +37,7 @@ func main() {
 			pidInfo, _ := ps.FindProcess(pid)
 			if pidInfo == nil {
 				Notify(msg_bad)
+				WriteServerDown()
 				os.Exit(1)
 			}
 			time.Sleep(5 * time.Second)
@@ -44,13 +45,8 @@ func main() {
 	}()
 
 	for {
-		pidInfo, _ := ps.FindProcess(pid)
-		if pidInfo == nil {
-			Notify(msg_bad)
-			os.Exit(1)
-		}
 		Notify(msg_good)
-		time.Sleep(600 * time.Second)
+		time.Sleep(60 * time.Second)
 		//		time.Sleep(12 * time.Hour)
 	}
 
