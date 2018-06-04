@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mitchellh/go-ps"
+	ps "github.com/mitchellh/go-ps"
 )
 
 const (
@@ -21,36 +21,9 @@ const (
 
 var (
 	accessToken = os.Getenv("NOTIFY_TOKEN")
+	quit        = make(chan struct{})
+	thour       = make(chan int)
 )
-
-func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("Please set 'monitor <pid>'")
-		os.Exit(1)
-	}
-	pid, err := strconv.Atoi(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		for {
-			pidInfo, _ := ps.FindProcess(pid)
-			if pidInfo == nil {
-				Notify(msg_bad)
-				WriteServerDown()
-				os.Exit(1)
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
-
-	for {
-		Notify(msg_good)
-		time.Sleep(60 * time.Second)
-		//		time.Sleep(12 * time.Hour)
-	}
-
-}
 
 // send message using notify
 func Notify(msg string) error {
@@ -77,4 +50,48 @@ func Notify(msg string) error {
 	}
 
 	return nil
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Please set 'monitor <pid>'")
+		os.Exit(1)
+	}
+
+	pid, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		t1 := time.NewTicker(5 * time.Second)
+		t2 := time.NewTicker(1 * time.Hour)
+		for {
+			select {
+			case <-t1.C:
+				pidinfo, _ := ps.FindProcess(pid)
+				if pidinfo == nil {
+					Notify(msg_bad)
+					WriteServerDown()
+					close(quit)
+				}
+			case <-t2.C:
+				thour <- time.Now().Hour()
+			}
+		}
+		t1.Stop()
+		t2.Stop()
+	}()
+
+	for {
+		select {
+		case <-quit: //error処理
+			fmt.Fprint(os.Stderr, "server down")
+			os.Exit(1)
+		case h := <-thour:
+			if h == 11 || h == 17 {
+				Notify(msg_good)
+			}
+		}
+	}
 }
