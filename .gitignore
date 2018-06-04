@@ -2,4 +2,5 @@ env/.vagrant
 test/test2
 test/trace
 test/test2.go
+slack/slack
 

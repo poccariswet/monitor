@@ -90,6 +90,15 @@ func (e *EnvConfig) setEnv() error {
 	return nil
 }
 
+func setPrams() slack.PostMessageParameters {
+	attachment := slack.Attachment{}
+	return slack.PostMessageParameters{
+		Attachments: []slack.Attachment{
+			attachment,
+		},
+	}
+}
+
 func (s *Slack) handleMessageEvent(ev *slack.MessageEvent) error {
 	if ev.Channel != s.channelID {
 		log.Printf("%s %s", ev.Channel, ev.Msg.Text)
@@ -100,22 +109,19 @@ func (s *Slack) handleMessageEvent(ev *slack.MessageEvent) error {
 		return nil
 	}
 
-	//ここでbotIDを取り除いたテキストがでるここでswitchでもいい
 	m := strings.Split(strings.TrimSpace(ev.Msg.Text), " ")[1:]
+	label := ""
+	params := slack.PostMessageParameters{}
 	switch m[0] {
+	case "hey":
+		label = "hello, help?"
+		params = setPrams()
 
 	default:
-		return fmt.Errorf("invalid message")
+		return nil
 	}
 
-	attachment := slack.Attachment{}
-	params := slack.PostMessageParameters{
-		Attachments: []slack.Attachment{
-			attachment,
-		},
-	}
-
-	if _, _, err := s.client.PostMessage(ev.Channel, "hello, help?", params); err != nil {
+	if _, _, err := s.client.PostMessage(ev.Channel, label, params); err != nil {
 		return fmt.Errorf("[ERROR] Failed to post message: %s", err)
 	}
 
