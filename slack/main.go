@@ -1,129 +1,85 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"strings"
+	"strconv"
+	"time"
 
-	"github.com/nlopes/slack"
+	ps "github.com/mitchellh/go-ps"
 )
 
-type EnvConfig struct {
-	BotToken          string
-	VerificationToken string
-	BotID             string
-	ChannelID         string
-}
+const (
+	endpoint = "https://hooks.slack.com/services/"
+	msg_good = "running write process"
+	msg_bad  = "stopped write process\nPlease check write server"
+)
 
-type Slack struct {
-	client    *slack.Client
-	botID     string
-	channelID string
+var (
+	accessToken = os.Getenv("INCOMMING_TOKEN")
+	quit        = make(chan struct{})
+	thour       = make(chan int)
+)
+
+// send message using notify
+func Notify(msg string) error {
+	url := endpoint + accessToken
+	data := `{"text":"` + msg + `"}`
+	body := bytes.NewBuffer([]byte(data))
+
+	req, _ := http.NewRequest("POST", url, body)
+	req.Header.Set("Content-Type", "application/json")
+	_, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return nil
 }
 
 func main() {
-	os.Exit(run())
-}
-
-func run() int {
-	var env EnvConfig
-	if err := env.setEnv(); err != nil {
-		log.Print(err)
-		return 1
+	if len(os.Args) != 2 {
+		fmt.Println("Please set 'monitor <pid>'")
+		os.Exit(1)
 	}
 
-	log.Print("Start Slack")
-	api := slack.New(env.BotToken)
-	s := &Slack{
-		client:    api,
-		botID:     env.BotID,
-		channelID: env.ChannelID,
+	pid, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	rtm := api.NewRTM()
-	go rtm.ManageConnection()
+	go func() {
+		t1 := time.NewTicker(5 * time.Second)
+		t2 := time.NewTicker(1 * time.Hour)
+		for {
+			select {
+			case <-t1.C:
+				pidinfo, _ := ps.FindProcess(pid)
+				if pidinfo == nil {
+					Notify(msg_bad)
+					WriteServerDown()
+					close(quit)
+				}
+			case <-t2.C:
+				thour <- time.Now().Hour()
+			}
+		}
+		t1.Stop()
+		t2.Stop()
+	}()
 
-	for msg := range rtm.IncomingEvents {
-		switch ev := msg.Data.(type) {
-		case *slack.MessageEvent:
-			log.Print("[INFO] get message")
-			if err := s.handleMessageEvent(ev); err != nil {
-				log.Printf("[ERROR] Failed to handle message: %s", err)
+	for {
+		select {
+		case <-quit: //error処理
+			fmt.Fprint(os.Stderr, "server down")
+			os.Exit(1)
+		case h := <-thour:
+			if h == 11 || h == 17 {
+				Notify(msg_good)
 			}
 		}
 	}
-
-	return 0
-}
-
-func lookupenv(key string) (string, error) {
-	env, ok := os.LookupEnv(key)
-	if !ok {
-		return "", fmt.Errorf("%s is invalid value", key)
-	}
-	return env, nil
-}
-
-func (e *EnvConfig) setEnv() error {
-	var err error
-	e.ChannelID, err = lookupenv("CHANNEL_ID")
-	if err != nil {
-		return err
-	}
-
-	e.BotID, err = lookupenv("BOT_ID")
-	if err != nil {
-		return err
-	}
-
-	e.VerificationToken, err = lookupenv("VERIFICATION_TOKEN")
-	if err != nil {
-		return err
-	}
-
-	e.BotToken, err = lookupenv("BOT_TOKEN")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func setPrams() slack.PostMessageParameters {
-	attachment := slack.Attachment{}
-	return slack.PostMessageParameters{
-		Attachments: []slack.Attachment{
-			attachment,
-		},
-	}
-}
-
-func (s *Slack) handleMessageEvent(ev *slack.MessageEvent) error {
-	if ev.Channel != s.channelID {
-		log.Printf("%s %s", ev.Channel, ev.Msg.Text)
-		return nil
-	}
-
-	if !strings.HasPrefix(ev.Msg.Text, fmt.Sprintf("<@%s> ", s.botID)) {
-		return nil
-	}
-
-	m := strings.Split(strings.TrimSpace(ev.Msg.Text), " ")[1:]
-	label := ""
-	params := slack.PostMessageParameters{}
-	switch m[0] {
-	case "hey":
-		label = "hello, help?"
-		params = setPrams()
-
-	default:
-		return nil
-	}
-
-	if _, _, err := s.client.PostMessage(ev.Channel, label, params); err != nil {
-		return fmt.Errorf("[ERROR] Failed to post message: %s", err)
-	}
-
-	return nil
 }
