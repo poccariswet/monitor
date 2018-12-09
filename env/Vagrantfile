@@ -2,12 +2,12 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "puphpet/centos65-x64"
-  config.vm.hostname = "soeyuu"
+  config.vm.box = "centos/7"
+  config.vm.hostname = "poccariswet"
   config.vm.network "private_network", ip: "192.168.33.10"
   config.vm.provider "virtualbox" do |vb|
     vb.name = "test_env"
-    vb.customize ["modifyvm", :id, "--memory", "5120"]
+    vb.customize ["modifyvm", :id, "--memory", "2048"]
   end
   config.vm.provision :shell, :path => "init.sh"
 end
